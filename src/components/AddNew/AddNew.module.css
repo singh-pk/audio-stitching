@@ -1,0 +1,9 @@
+.wrapper {
+    border: 2px dashed var(--accent-7);
+}
+
+.svg {
+    height: 50%;
+    width: 50%;
+    transform: translate(50%, 50%);
+}
