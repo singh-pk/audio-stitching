@@ -46,11 +46,11 @@ export const StitchAudio = () => {
     return gainNode;
   }, [playbackTimerRef, getAudioContext]);
 
-  const endPlayback = useCallback(() => {
+  const stopPlayback = useCallback(async () => {
     const audioCtx = getAudioContext();
 
     setIsPlaying(false);
-    audioCtx.suspend();
+    await audioCtx.suspend();
 
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
@@ -58,13 +58,33 @@ export const StitchAudio = () => {
     }
   }, [getAudioContext]);
 
-  const updatePlaybackTime = useCallback(() => {
+  const endPlayback = useCallback(async () => {
+    setIsPlaying(false);
+
+    if (audioCtxRef.current && audioCtxRef.current?.state !== "closed") {
+      await audioCtxRef.current.close();
+    }
+
+    createNewAudioContext();
+    playbackTimerRef.duration = 0;
+    playbackTimerRef.filesLen = 0;
+    playbackTimerRef.startTime = 0;
+    setCurrTime(0);
+    setDuration(0);
+
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+  }, [createNewAudioContext, playbackTimerRef]);
+
+  const updatePlaybackTime = useCallback(async () => {
     const audioCtx = getAudioContext();
     const { duration, startTime } = playbackTimerRef;
     const elapsedTime = audioCtx.currentTime - startTime;
 
     if (elapsedTime > duration) {
-      endPlayback();
+      await stopPlayback();
       return;
     }
 
@@ -75,10 +95,10 @@ export const StitchAudio = () => {
     animationRef.current = requestAnimationFrame(() => {
       updatePlaybackTime();
     });
-  }, [endPlayback, getAudioContext, playbackTimerRef]);
+  }, [stopPlayback, getAudioContext, playbackTimerRef]);
 
   const onPlayClick = useCallback(async () => {
-    const audioCtx = getAudioContext();
+    let audioCtx = getAudioContext();
 
     // Resume context if suspended due to browser autoplay policies
     if (audioCtx.state === "suspended") {
@@ -89,9 +109,12 @@ export const StitchAudio = () => {
     }
 
     if (isPlaying) {
-      endPlayback();
+      await stopPlayback();
       return;
     }
+
+    await endPlayback();
+    audioCtx = getAudioContext();
 
     setIsStitching(true);
 
@@ -131,8 +154,9 @@ export const StitchAudio = () => {
     }
 
     if (lastSourceNode) {
-      lastSourceNode.onended = () => {
-        endPlayback();
+      lastSourceNode.onended = async () => {
+        await stopPlayback();
+        await audioCtx.close();
       };
     }
 
@@ -140,6 +164,7 @@ export const StitchAudio = () => {
     setIsStitching(false);
     updatePlaybackTime();
   }, [
+    stopPlayback,
     endPlayback,
     getAudioContext,
     getGainNode,
@@ -169,14 +194,7 @@ export const StitchAudio = () => {
     }
 
     endPlayback();
-    audioCtxRef.current?.close();
-    createNewAudioContext();
-    playbackTimerRef.duration = 0;
-    playbackTimerRef.filesLen = 0;
-    playbackTimerRef.startTime = 0;
-    setCurrTime(0);
-    setDuration(0);
-  }, [folders, playbackTimerRef, endPlayback, createNewAudioContext]);
+  }, [folders, playbackTimerRef, endPlayback]);
 
   return (
     <Controls
