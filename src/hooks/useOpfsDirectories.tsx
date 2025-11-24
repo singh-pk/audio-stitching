@@ -114,11 +114,13 @@ export const useOpfsDirectories = () => {
       }),
     );
 
-    // Filter out null values (failed reads)
-    return buffers.filter(
-      (item): item is { metadata: AudioMetadata; buffer: ArrayBuffer } =>
-        item !== null,
-    );
+    // Filter out null values (failed reads) and sort by uploadedAt descending
+    return buffers
+      .filter(
+        (item): item is { metadata: AudioMetadata; buffer: ArrayBuffer } =>
+          item !== null,
+      )
+      .sort((a, b) => b.metadata.uploadedAt - a.metadata.uploadedAt);
   }, []);
 
   const deleteFolder = useCallback(async (folderName: string) => {

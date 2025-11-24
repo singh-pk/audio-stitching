@@ -59,27 +59,40 @@ export const AddNew = () => {
   const handleClick = async () => {
     if (isUploading) return;
 
-    try {
-      // Use File System Access API to pick file
-      const [fileHandle] = await window.showOpenFilePicker({
-        types: [
-          {
-            description: "Audio",
-            accept: {
-              "audio/*": [],
+    // Check if File System Access API is supported
+    if ("showOpenFilePicker" in window) {
+      try {
+        // Use File System Access API to pick file
+        const [fileHandle] = await window.showOpenFilePicker({
+          types: [
+            {
+              description: "Audio",
+              accept: {
+                "audio/*": [],
+              },
             },
-          },
-        ],
-        multiple: false,
-      });
+          ],
+          multiple: false,
+        });
 
-      const file = await fileHandle.getFile();
-      await handleFileUpload(file);
-    } catch (error) {
-      // User cancelled the picker or browser doesn't support the API
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.error("Failed to open file picker:", error);
+        const file = await fileHandle.getFile();
+        await handleFileUpload(file);
+      } catch (error) {
+        // User cancelled the picker
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error("Failed to open file picker:", error);
+        }
       }
+    } else {
+      // Fallback to traditional file input
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "audio/*";
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) await handleFileUpload(file);
+      };
+      input.click();
     }
   };
 
